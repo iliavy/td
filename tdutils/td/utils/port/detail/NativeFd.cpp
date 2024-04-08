@@ -210,17 +210,27 @@ Status NativeFd::set_is_blocking_unsafe(bool is_blocking) const {
   return Status::OK();
 }
 
-Status NativeFd::duplicate(const NativeFd &to) const {
-#if TD_PORT_POSIX
+Status NativeFd::duplicate(const NativeFd &const_to) const {
   CHECK(*this);
-  CHECK(to);
+  CHECK(const_to);
+  auto &to = const_cast<NativeFd&>(const_to);
+#if TD_PORT_POSIX
   if (dup2(fd(), to.fd()) == -1) {
     return OS_ERROR("Failed to duplicate file descriptor");
   }
-  return Status::OK();
 #elif TD_PORT_WINDOWS
-  return Status::Error("Not supported");
+  if (is_socket_) {
+    return Status::Error("Not supported");
+  }
+  to.close();
+
+  HANDLE current_process = GetCurrentProcess();
+  if (!DuplicateHandle(current_process, fd(), current_process, &to.fd_, NULL, TRUE, DUPLICATE_SAME_ACCESS)) {
+    return OS_ERROR("Failed to duplicate handle");
+  }
+  to.is_socket_ = is_socket_;
 #endif
+  return Status::OK();
 }
 
 void NativeFd::close() {
