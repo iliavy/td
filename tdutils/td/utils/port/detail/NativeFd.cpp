@@ -219,7 +219,7 @@ Status NativeFd::duplicate(const NativeFd &const_to) const {
     return OS_ERROR("Failed to duplicate file descriptor");
   }
 #elif TD_PORT_WINDOWS
-  if (is_socket_) {
+  if (is_socket_ || to.is_socket_) {
     return Status::Error("Not supported");
   }
   to.close();
@@ -228,7 +228,6 @@ Status NativeFd::duplicate(const NativeFd &const_to) const {
   if (!DuplicateHandle(current_process, fd(), current_process, &to.fd_, NULL, TRUE, DUPLICATE_SAME_ACCESS)) {
     return OS_ERROR("Failed to duplicate handle");
   }
-  to.is_socket_ = is_socket_;
 #endif
   return Status::OK();
 }
